@@ -1,4 +1,3 @@
-use chrono::Utc;
 use sqlite::{self, Connection};
 use std::path::Path;
 
@@ -15,6 +14,7 @@ pub struct Noun {
     id: i64,
     pub article: String,
     pub word: String,
+    level: i64,
 }
 
 impl Database {
@@ -24,7 +24,7 @@ impl Database {
             id integer primary key,
             article text,
             word text,
-            last_correct integer);
+            level integer default 0);
         ";
         connection.execute(query).unwrap();
 
@@ -53,8 +53,7 @@ impl Database {
     pub fn get_noun(&self) -> Noun {
         let query = "
           select * from nouns
-            where last_correct is null
-            order by random()
+            order by level, random()
             limit 1
         ";
         let mut statement = self.connection.prepare(query).unwrap();
@@ -65,16 +64,29 @@ impl Database {
             id: statement.read("id").unwrap(),
             article: statement.read("article").unwrap(),
             word: statement.read("word").unwrap(),
+            level: statement.read("level").unwrap(),
         }
     }
 
-    pub fn mark_correct(&self, noun: &Noun) {
-        let ts = Utc::now().timestamp();
-
+    fn update_level(&self, noun: &Noun, new_level: i64) {
         let q = format!(
-            "update nouns set last_correct = {} where id = {}",
-            ts, noun.id
+            "update nouns set level = {} where id = {}",
+            new_level, noun.id
         );
         self.connection.execute(q).unwrap();
+    }
+
+    pub fn decrease_level(&self, noun: &Noun) {
+        let new_level = if noun.level > 0 {
+            noun.level - 1
+        } else {
+            noun.level
+        };
+
+        self.update_level(noun, new_level);
+    }
+
+    pub fn increase_level(&self, noun: &Noun) {
+        self.update_level(noun, noun.level + 1);
     }
 }

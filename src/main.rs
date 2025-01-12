@@ -5,6 +5,7 @@ use db::Database;
 
 fn ask_noun(db: &Database) {
     let noun = db.get_noun();
+    let mut misstake = false;
 
     loop {
         println!("___ {}?", noun.word);
@@ -14,11 +15,16 @@ fn ask_noun(db: &Database) {
 
         if guess.trim().to_lowercase() == noun.article {
             println!("correct");
-            db.mark_correct(&noun);
-            return;
+            break;
         }
 
+        misstake = true;
         println!("wrong, try again");
+    }
+
+    match misstake {
+        true => db.decrease_level(&noun),
+        false => db.increase_level(&noun),
     }
 }
 
