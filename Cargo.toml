@@ -1,0 +1,9 @@
+[package]
+name = "deutsch"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+rusqlite = "0.33.0"
