@@ -1,88 +1,53 @@
-use std::collections::HashSet;
 use std::result::Result;
 
-const DECK_SIZE: usize = 8;
+mod nouns;
+use nouns::NOUNS;
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+const DECK_SIZE: usize = 4;
+
+#[derive(Debug)]
 pub struct Noun {
     pub article: &'static str,
     pub word: &'static str,
 }
 
-const NOUNS: [Noun; 8] = [
-    Noun {
-        article: "the",
-        word: "apple",
-    },
-    Noun {
-        article: "a",
-        word: "banana",
-    },
-    Noun {
-        article: "the",
-        word: "carrot",
-    },
-    Noun {
-        article: "a",
-        word: "dog",
-    },
-    Noun {
-        article: "the",
-        word: "elephant",
-    },
-    Noun {
-        article: "a",
-        word: "fish",
-    },
-    Noun {
-        article: "the",
-        word: "guitar",
-    },
-    Noun {
-        article: "a",
-        word: "house",
-    },
-];
+impl Noun {
+    fn new(a: &'static str, b: &'static str) -> Noun {
+        Noun {
+            article: a,
+            word: b,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Deck {
-    noun_indices: HashSet<usize>,
-    current_noun_idx: usize,
-}
-
-fn next_index(indices: &HashSet<usize>) -> Option<&usize> {
-    indices.iter().next()
+    nouns: Vec<Noun>,
 }
 
 impl Deck {
     pub fn new() -> Deck {
-        let mut nouns_indices = HashSet::new();
+        let mut nouns = Vec::new();
 
         for i in 0..DECK_SIZE {
-            nouns_indices.insert(i);
+            let (a, w) = NOUNS[i];
+            nouns.push(Noun::new(a, w));
         }
 
-        let cur_idx = *next_index(&nouns_indices).unwrap();
-
-        Deck {
-            noun_indices: nouns_indices,
-            current_noun_idx: cur_idx,
-        }
+        Deck { nouns: nouns }
     }
 
     pub fn get_current_noun(&self) -> &Noun {
-        &NOUNS[self.current_noun_idx]
+        self.nouns.last().unwrap()
     }
 
     pub fn goto_next_noun(&mut self) -> Result<(), ()> {
-        self.noun_indices.remove(&self.current_noun_idx);
+        self.nouns.pop();
 
-        match next_index(&self.noun_indices) {
-            Some(idx) => {
-                self.current_noun_idx = *idx;
-                Ok(())
-            }
-            None => Err(()),
+        if self.nouns.is_empty() {
+            return Err(());
         }
+
+        Ok(())
     }
 }

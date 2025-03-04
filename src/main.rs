@@ -11,44 +11,20 @@ use ratatui::{
 };
 use std::io;
 
+mod deck;
+use deck::Deck;
+
 #[derive(Debug)]
 struct App {
     exit: bool,
+    deck: Deck,
     answer: Answer,
-    noun: Noun,
-}
-
-#[derive(Debug)]
-struct Noun {
-    article: String,
-    word: String,
 }
 
 #[derive(Debug)]
 struct Answer {
     text: String,
     wrong: bool,
-}
-
-fn get_noun(app: &App) -> Noun {
-    if app.noun.word == "Brot" {
-        return Noun::new("die", "Katze");
-    }
-
-    if app.noun.word == "Katze" {
-        return Noun::new("der", "Vater");
-    }
-
-    Noun::new("das", "Brot")
-}
-
-impl Noun {
-    fn new(article: &str, word: &str) -> Noun {
-        Noun {
-            article: String::from(article),
-            word: String::from(word),
-        }
-    }
 }
 
 impl Answer {
@@ -90,12 +66,13 @@ impl App {
         App {
             exit: false,
             answer: Answer::new(),
-            noun: Noun::new("das", "Brot"),
+            deck: Deck::new(),
         }
     }
 
     fn check_answer(&mut self) {
-        if self.answer.text != self.noun.article {
+        let noun = self.deck.get_current_noun();
+        if self.answer.text != noun.article {
             /* incorrect answer */
             self.answer.wrong = true;
             return;
@@ -103,7 +80,7 @@ impl App {
 
         /* the answer was correct */
         self.answer.reset();
-        self.noun = get_noun(self);
+        self.exit = self.deck.goto_next_noun().is_err();
     }
 
     fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
@@ -162,10 +139,12 @@ impl Widget for &App {
             true => Color::Red,
         };
 
+        let noun = self.deck.get_current_noun();
+
         let line = Line::from(vec![
             Span::styled(self.answer.rendered(), Style::new().bg(guess_background)),
             Span::raw(" "),
-            Span::styled(&self.noun.word, Style::new()),
+            Span::styled(noun.word, Style::new()),
         ]);
 
         Paragraph::new(line).centered().render(layout[1], buf);
