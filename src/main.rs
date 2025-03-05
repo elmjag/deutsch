@@ -25,6 +25,7 @@ struct App {
 struct Answer {
     text: String,
     wrong: bool,
+    dock_level: bool,
 }
 
 impl Answer {
@@ -32,6 +33,7 @@ impl Answer {
         Answer {
             text: String::from(""),
             wrong: false,
+            dock_level: false,
         }
     }
 
@@ -62,25 +64,34 @@ impl Answer {
 }
 
 impl App {
-    fn new() -> App {
-        App {
+    fn new() -> Result<App, String> {
+        Ok(App {
             exit: false,
             answer: Answer::new(),
-            deck: Deck::new(),
-        }
+            deck: Deck::new()?,
+        })
     }
 
-    fn check_answer(&mut self) {
+    fn check_answer(&mut self) -> Result<(), String> {
         let noun = self.deck.get_current_noun();
         if self.answer.text != noun.article {
             /* incorrect answer */
             self.answer.wrong = true;
-            return;
+            self.answer.dock_level = true;
+            return Ok(());
+        }
+
+        match self.answer.dock_level {
+            true => self.deck.decrease_level(noun)?,
+            false => self.deck.increase_level(noun)?,
         }
 
         /* the answer was correct */
+        self.answer.dock_level = false;
         self.answer.reset();
         self.exit = self.deck.goto_next_noun().is_err();
+
+        Ok(())
     }
 
     fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
@@ -96,31 +107,35 @@ impl App {
         frame.render_widget(self, frame.area());
     }
 
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
+    fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<(), String> {
         if self.answer.wrong {
             self.answer.reset();
         }
 
         if key_event.kind != KeyEventKind::Press {
-            return;
+            return Ok(());
         }
 
         match key_event.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => self.exit = true,
-            KeyCode::Enter => self.check_answer(),
+            KeyCode::Enter => self.check_answer()?,
             KeyCode::Backspace => self.answer.delete_character(),
             KeyCode::Char(c) => self.answer.add_character(c),
             _ => {}
         }
+        Ok(())
     }
 
     fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
+        let res = match event::read()? {
             Event::Key(key_event) => self.handle_key_event(key_event),
-            _ => {}
+            _ => Ok(()),
         };
 
-        Ok(())
+        match res {
+            Ok(_) => Ok(()),
+            Err(msg) => Err(io::Error::other(msg)),
+        }
     }
 }
 
@@ -152,7 +167,10 @@ impl Widget for &App {
 }
 
 fn main() -> io::Result<()> {
-    let mut app = App::new();
+    let mut app = match App::new() {
+        Ok(app) => app,
+        Err(msg) => panic!("{msg}"),
+    };
     let mut terminal = ratatui::init();
 
     let res = app.run(&mut terminal);
